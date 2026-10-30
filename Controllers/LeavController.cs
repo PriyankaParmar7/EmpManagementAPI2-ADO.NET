@@ -108,12 +108,12 @@ public class LeaveController : ControllerBase
 
 
     // =========================================================
-    // 4.HR + ADMIN - ALL LEAVES
+    // 4. MANAGER + HR + ADMIN - ALL LEAVES
     // GET: api/Leave/all
     // =========================================================
 
     [HttpGet("all")]
-    [Authorize(Roles = "HR,Admin")]
+    [Authorize(Roles = "Manager,HR,Admin")]
     public async Task<IActionResult> GetAllLeaves()
     {
         List<LeaveResponseDto> leaves =
@@ -124,12 +124,12 @@ public class LeaveController : ControllerBase
 
 
     // =========================================================
-    // 5.HR + ADMIN - PENDING LEAVES
+    // 5. MANAGER + HR + ADMIN - PENDING LEAVES
     // GET: api/Leave/pending
     // =========================================================
 
     [HttpGet("pending")]
-    [Authorize(Roles = "HR,Admin")]
+    [Authorize(Roles = "Manager,HR,Admin")]
     public async Task<IActionResult> GetPendingLeaves()
     {
         List<LeaveResponseDto> leaves =
@@ -280,7 +280,7 @@ public class LeaveController : ControllerBase
 
         return Ok("Leave cancelled successfully.");
     }
-    
+
 
     // =========================================================
     // SEARCH / FILTER / PAGINATION
@@ -288,7 +288,7 @@ public class LeaveController : ControllerBase
     // =========================================================
 
     [HttpPost("search")]
-    [Authorize(Roles = "HR,Admin")]
+    [Authorize(Roles = "Manager,HR,Admin")]
     public async Task<IActionResult> SearchLeaves(
         LeaveFilterDto filter)
     {

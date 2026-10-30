@@ -13,8 +13,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
         services.AddScoped<ISetupService, SetupService>();
 
-        services.AddSingleton<IDatabaseInitializer, DatabaseInitializer>();
-
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IEmailService, EmailService>();

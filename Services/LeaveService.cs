@@ -51,13 +51,13 @@ public class LeaveService : ILeaveService
         return await _leaveRepository.GetLeaveByIdAsync(leaveId);
     }
 
-    //  HR / Admin
+    // Manager / HR / Admin
     public async Task<List<LeaveResponseDto>> GetAllLeavesAsync()
     {
         return await _leaveRepository.GetAllLeavesAsync();
     }
 
-    // HR / Admin
+    // Manager / HR / Admin
     public async Task<List<LeaveResponseDto>> GetPendingLeavesAsync()
     {
         return await _leaveRepository.GetPendingLeavesAsync();

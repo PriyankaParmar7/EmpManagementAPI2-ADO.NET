@@ -1,9 +1,10 @@
-using EmpManagementAPI2.Database;
-using EmpManagementAPI2.Extensions;
-using EmpManagementAPI2.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using EmpManagementAPI2.Middleware;
+using EmpManagementAPI2.Extensions;
+
 using System.Text;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -30,6 +31,7 @@ builder.Services.AddSwaggerGen(options =>
         });
 });
 
+
 builder.Services.AddApplicationServices();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -52,15 +54,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 WebApplication app = builder.Build();
-
-using (IServiceScope scope = app.Services.CreateScope())
-{
-    IDatabaseInitializer databaseInitializer =
-        scope.ServiceProvider.GetRequiredService<IDatabaseInitializer>();
-
-    await databaseInitializer.InitializeAsync();
-}    
-
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 
