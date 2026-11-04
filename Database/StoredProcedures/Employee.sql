@@ -235,7 +235,7 @@ BEGIN
         (
             @Search IS NULL
             OR e.Name LIKE '%' + @Search + '%'
-            OR e.Email LIKE '%' + @Search + '%'
+           
         )
         AND
         (
@@ -303,7 +303,7 @@ BEGIN
         (
             @Search IS NULL
             OR e.Name LIKE '%' + @Search + '%'
-            OR e.Email LIKE '%' + @Search + '%'
+            
         )
         AND
         (
@@ -564,59 +564,63 @@ END;
 GO
 
 
-
-
-CREATE OR ALTER PROCEDURE DeleteEmployee
+CREATE OR ALTER PROCEDURE dbo.DeleteEmployee
     @Id INT
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Check employee exists
-    IF NOT EXISTS
-    (
-        SELECT 1
-        FROM Employees
-        WHERE Id = @Id
-    )
-    BEGIN
-        SELECT 0 AS Result;
-        RETURN;
-    END;
-
     DECLARE @AppUserId INT;
 
-    SELECT @AppUserId = AppUserId
-    FROM Employees
-    WHERE Id = @Id;
-
-    BEGIN TRANSACTION;
-
     BEGIN TRY
+        BEGIN TRANSACTION;
 
-        -- Delete employee designation
-        DELETE FROM EmployeeDesignations
-        WHERE EmployeeId = @Id;
+        -- Check whether employee exists
+        IF NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.Employees
+            WHERE Id = @Id
+        )
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT 0 AS Result;
+            RETURN;
+        END;
 
-        -- Delete employee
-        DELETE FROM Employees
+        -- Get linked application user ID
+        SELECT @AppUserId = AppUserId
+        FROM dbo.Employees
         WHERE Id = @Id;
 
-        -- Delete application user
-        DELETE FROM AppUsers
+        -- Delete employee designation mappings
+        DELETE FROM dbo.EmployeeDesignations
+        WHERE EmployeeId = @Id;
+
+        -- Delete employee record
+        DELETE FROM dbo.Employees
+        WHERE Id = @Id;
+
+        -- Delete application user's role mappings first
+        DELETE FROM dbo.UserRoles
+        WHERE UserId = @AppUserId;
+
+        -- Delete linked application user
+        DELETE FROM dbo.AppUsers
         WHERE Id = @AppUserId;
 
         COMMIT TRANSACTION;
 
         SELECT 1 AS Result;
-
     END TRY
     BEGIN CATCH
+        IF XACT_STATE() <> 0
+        BEGIN
+            ROLLBACK TRANSACTION;
+        END;
 
-        ROLLBACK TRANSACTION;
-
-        SELECT 0 AS Result;
-
+        -- Return the actual SQL error instead of hiding it
+        THROW;
     END CATCH;
 END;
 GO
@@ -682,12 +686,11 @@ BEGIN
 
     END TRY
     BEGIN CATCH
-
+    IF XACT_STATE() <> 0
         ROLLBACK TRANSACTION;
 
-        SELECT 0 AS Result;
-
-    END CATCH;
+    THROW;
+END CATCH;
 END;
 GO
 

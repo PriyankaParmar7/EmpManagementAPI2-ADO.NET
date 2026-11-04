@@ -1,8 +1,10 @@
-﻿using System.Security.Claims;
-using EmpManagementAPI2.DTOs.Leave;
+﻿using EmpManagementAPI2.DTOs.Leave;
 using EmpManagementAPI2.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace EmpManagementAPI2.Controllers;
 
@@ -108,12 +110,12 @@ public class LeaveController : ControllerBase
 
 
     // =========================================================
-    // 4. MANAGER + HR + ADMIN - ALL LEAVES
+    // 4.HR + ADMIN - ALL LEAVES
     // GET: api/Leave/all
     // =========================================================
 
     [HttpGet("all")]
-    [Authorize(Roles = "Manager,HR,Admin")]
+    [Authorize(Roles = "HR,Admin")]
     public async Task<IActionResult> GetAllLeaves()
     {
         List<LeaveResponseDto> leaves =
@@ -124,12 +126,12 @@ public class LeaveController : ControllerBase
 
 
     // =========================================================
-    // 5. MANAGER + HR + ADMIN - PENDING LEAVES
+    // 5.HR + ADMIN - PENDING LEAVES
     // GET: api/Leave/pending
     // =========================================================
 
     [HttpGet("pending")]
-    [Authorize(Roles = "Manager,HR,Admin")]
+    [Authorize(Roles = "HR,Admin")]
     public async Task<IActionResult> GetPendingLeaves()
     {
         List<LeaveResponseDto> leaves =
@@ -288,7 +290,7 @@ public class LeaveController : ControllerBase
     // =========================================================
 
     [HttpPost("search")]
-    [Authorize(Roles = "Manager,HR,Admin")]
+    [Authorize(Roles = "HR,Admin")]
     public async Task<IActionResult> SearchLeaves(
         LeaveFilterDto filter)
     {

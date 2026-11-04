@@ -125,6 +125,10 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Departments WHERE Name=N'Marketing')
 IF NOT EXISTS (SELECT 1 FROM dbo.Departments WHERE Name=N'Customer Support')
     INSERT dbo.Departments(Name,Description)
     VALUES(N'Customer Support',N'Customer Support and Service Department');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Departments WHERE Name=N'Admin')
+    INSERT dbo.Departments(Name,Description)
+    VALUES(N'Admin',N'Admin Department');
 GO
 
 /* Teams - using the names requested by the user */
@@ -277,6 +281,99 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Designations WHERE Name=N'Assistant Manager')
 IF NOT EXISTS (SELECT 1 FROM dbo.Designations WHERE Name=N'Department Manager')
     INSERT dbo.Designations(Name,Description,IsActive)
     VALUES(N'Department Manager',N'Manages department operations and employees',1);
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Designations WHERE Name=N'Administration')
+    INSERT dbo.Designations(Name,Description,IsActive)
+    VALUES(N'Administration',N'Administration Designation',1);
+GO
+
+
+/* ========================================================================= */
+/* INITIAL SEED: System Administrator Employee (TeamId = NULL)               */
+/* ========================================================================= */
+IF NOT EXISTS (SELECT 1 FROM dbo.AppUsers WHERE Username = N'admin')
+BEGIN
+    BEGIN TRANSACTION;
+
+    BEGIN TRY
+        DECLARE @AdminUserId INT;
+        DECLARE @AdminRoleId INT;
+        DECLARE @AdminDeptId INT;
+        DECLARE @AdminDesignationId INT;
+        DECLARE @AdminEmployeeId INT;
+
+        -- 1. Insert AppUser (Password: Admin@123)
+        INSERT INTO dbo.AppUsers
+        (
+            Username,
+            Email,
+            PasswordHash,
+            PasswordSalt,
+            IsActive
+        )
+        VALUES
+        (
+            N'admin',
+            N'priyankaaparmar0707@gmail.com',
+            0xA210370A6DBB957C341A1E72FDCC18DCEFED252361597057C44C50A9EC98FD872F9A6265BDA105F9228B7118448799E2B6F038993066278182FAFA4BAC81A938,
+            0x0D25BE781D1EE410B7ED04F9BF896349A1CFBEB538165FE3D80C31F003332066,
+            1
+        );
+
+        SET @AdminUserId = SCOPE_IDENTITY();
+
+        -- 2. Lookup Master Data IDs
+        SELECT @AdminRoleId = Id FROM dbo.Roles WHERE Name = N'Admin';
+        SELECT @AdminDeptId = Id FROM dbo.Departments WHERE Name = N'Admin';
+        SELECT @AdminDesignationId = Id FROM dbo.Designations WHERE Name = N'Administration';
+
+        -- 3. Assign Admin Role in UserRoles
+        IF @AdminRoleId IS NOT NULL
+        BEGIN
+            INSERT INTO dbo.UserRoles (UserId, RoleId)
+            VALUES (@AdminUserId, @AdminRoleId);
+        END;
+
+        -- 4. Create Employee (TeamId is kept NULL)
+        INSERT INTO dbo.Employees
+        (
+            AppUserId,
+            Name,
+            Email,
+            DepartmentId,
+            TeamId,
+            SupervisorId,
+            JoiningDate,
+            IsActive
+        )
+        VALUES
+        (
+            @AdminUserId,
+            N'System Administrator',
+            N'priyankaaparmar0707@gmail.com',
+            @AdminDeptId,
+            NULL,               -- Team is kept NULL
+            NULL,               -- Supervisor is NULL
+            SYSUTCDATETIME(),
+            1
+        );
+
+        SET @AdminEmployeeId = SCOPE_IDENTITY();
+
+        -- 5. Assign Administration Designation in EmployeeDesignations
+        IF @AdminDesignationId IS NOT NULL
+        BEGIN
+            INSERT INTO dbo.EmployeeDesignations (EmployeeId, DesignationId)
+            VALUES (@AdminEmployeeId, @AdminDesignationId);
+        END;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
 GO
 
 
@@ -1373,61 +1470,66 @@ GO
 
 
 
-CREATE OR ALTER PROCEDURE DeleteEmployee
+CREATE OR ALTER PROCEDURE dbo.DeleteEmployee
     @Id INT
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Check employee exists
-    IF NOT EXISTS
-    (
-        SELECT 1
-        FROM Employees
-        WHERE Id = @Id
-    )
-    BEGIN
-        SELECT 0 AS Result;
-        RETURN;
-    END;
-
     DECLARE @AppUserId INT;
 
-    SELECT @AppUserId = AppUserId
-    FROM Employees
-    WHERE Id = @Id;
-
-    BEGIN TRANSACTION;
-
     BEGIN TRY
+        BEGIN TRANSACTION;
 
-        -- Delete employee designation
-        DELETE FROM EmployeeDesignations
-        WHERE EmployeeId = @Id;
+        -- Check whether employee exists
+        IF NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.Employees
+            WHERE Id = @Id
+        )
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT 0 AS Result;
+            RETURN;
+        END;
 
-        -- Delete employee
-        DELETE FROM Employees
+        -- Get linked application user ID
+        SELECT @AppUserId = AppUserId
+        FROM dbo.Employees
         WHERE Id = @Id;
 
-        -- Delete application user
-        DELETE FROM AppUsers
+        -- Delete employee designation mappings
+        DELETE FROM dbo.EmployeeDesignations
+        WHERE EmployeeId = @Id;
+
+        -- Delete employee record
+        DELETE FROM dbo.Employees
+        WHERE Id = @Id;
+
+        -- Delete application user's role mappings first
+        DELETE FROM dbo.UserRoles
+        WHERE UserId = @AppUserId;
+
+        -- Delete linked application user
+        DELETE FROM dbo.AppUsers
         WHERE Id = @AppUserId;
 
         COMMIT TRANSACTION;
 
         SELECT 1 AS Result;
-
     END TRY
     BEGIN CATCH
+        IF XACT_STATE() <> 0
+        BEGIN
+            ROLLBACK TRANSACTION;
+        END;
 
-        ROLLBACK TRANSACTION;
-
-        SELECT 0 AS Result;
-
+        -- Return the actual SQL error instead of hiding it
+        THROW;
     END CATCH;
 END;
 GO
-
 
 
 
@@ -2557,148 +2659,6 @@ BEGIN
 
     OFFSET @Offset ROWS
     FETCH NEXT @PageSize ROWS ONLY;
-END;
-GO
-GO
-
-/* ===== Setup.sql ===== */
-CREATE OR ALTER PROCEDURE CreateInitialAdmin
-    @Username NVARCHAR(100),
-    @Email NVARCHAR(255),
-    @PasswordHash VARBINARY(MAX),
-    @PasswordSalt VARBINARY(MAX),
-    @Name NVARCHAR(200)
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    BEGIN TRANSACTION;
-
-    BEGIN TRY
-
-        DECLARE @AdminRoleId INT;
-
-        -- Find Admin role
-        SELECT @AdminRoleId = Id
-        FROM Roles
-        WHERE Name = 'Admin';
-
-        -- Admin role must exist
-        IF @AdminRoleId IS NULL
-        BEGIN
-            ROLLBACK TRANSACTION;
-            SELECT 0 AS Result;
-            RETURN;
-        END;
-
-        -- Check whether Admin already exists
-        IF EXISTS
-        (
-            SELECT 1
-            FROM UserRoles
-            WHERE RoleId = @AdminRoleId
-        )
-        BEGIN
-            ROLLBACK TRANSACTION;
-            SELECT 0 AS Result;
-            RETURN;
-        END;
-
-        -- Check username
-        IF EXISTS
-        (
-            SELECT 1
-            FROM AppUsers
-            WHERE Username = @Username
-        )
-        BEGIN
-            ROLLBACK TRANSACTION;
-            SELECT 0 AS Result;
-            RETURN;
-        END;
-
-        -- Check email
-        IF EXISTS
-        (
-            SELECT 1
-            FROM AppUsers
-            WHERE Email = @Email
-        )
-        BEGIN
-            ROLLBACK TRANSACTION;
-            SELECT 0 AS Result;
-            RETURN;
-        END;
-
-        -- Create AppUser
-        INSERT INTO AppUsers
-        (
-            Username,
-            Email,
-            PasswordHash,
-            PasswordSalt,
-            IsActive
-        )
-        VALUES
-        (
-            @Username,
-            @Email,
-            @PasswordHash,
-            @PasswordSalt,
-            1
-        );
-
-        DECLARE @UserId INT = SCOPE_IDENTITY();
-
-        -- Create Employee
-        INSERT INTO Employees
-        (
-            AppUserId,
-            Name,
-            Email,
-            DepartmentId,
-            TeamId,
-            SupervisorId,
-            JoiningDate,
-            IsActive
-        )
-        VALUES
-        (
-            @UserId,
-            @Name,
-            @Email,
-            NULL,
-            NULL,
-            NULL,
-            GETUTCDATE(),
-            1
-        );
-
-        -- Assign Admin role
-        INSERT INTO UserRoles
-        (
-            UserId,
-            RoleId
-        )
-        VALUES
-        (
-            @UserId,
-            @AdminRoleId
-        );
-
-        COMMIT TRANSACTION;
-
-        SELECT 1 AS Result;
-
-    END TRY
-
-    BEGIN CATCH
-
-        ROLLBACK TRANSACTION;
-
-        SELECT 0 AS Result;
-
-    END CATCH;
 END;
 GO
 GO
