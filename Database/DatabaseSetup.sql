@@ -1138,8 +1138,8 @@ BEGIN
     WHERE
         (
             @Search IS NULL
-            OR e.Name LIKE '%' + @Search + '%'
-            OR e.Email LIKE '%' + @Search + '%'
+            OR e.Name LIKE @Search + '%'
+           
         )
         AND
         (
@@ -1206,8 +1206,8 @@ BEGIN
     WHERE
         (
             @Search IS NULL
-            OR e.Name LIKE '%' + @Search + '%'
-            OR e.Email LIKE '%' + @Search + '%'
+            OR e.Name LIKE @Search + '%'
+          
         )
         AND
         (
