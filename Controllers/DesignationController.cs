@@ -245,4 +245,15 @@ public class DesignationController : ControllerBase
 
         return Ok(employees);
     }
+    [HttpGet("count")]
+    [Authorize(Roles = "Admin,HR")]
+    public async Task<IActionResult> GetDesignationCount()
+    {
+        int count = await _designationService.GetDesignationCountAsync();
+
+        return Ok(new
+        {
+            totalDesignations = count
+        });
+    }
 }

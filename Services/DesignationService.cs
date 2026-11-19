@@ -1,5 +1,6 @@
 ﻿using EmpManagementAPI2.DTOs.Designation;
 using EmpManagementAPI2.Interfaces;
+using EmpManagementAPI2.Repository;
 
 namespace EmpManagementAPI2.Services;
 
@@ -124,5 +125,13 @@ public class DesignationService : IDesignationService
 
         return await _designationRepository
             .GetEmployeesByDesignationAsync(id);
+    }
+
+    // designation count
+
+    public async Task<int> GetDesignationCountAsync()
+    {
+        return await _designationRepository
+            .GetDesignationCountAsync();
     }
 }

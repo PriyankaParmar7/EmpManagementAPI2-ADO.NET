@@ -729,6 +729,18 @@ BEGIN
 END;
 GO
 
+-- 4. Get Designation Count
+CREATE OR ALTER PROCEDURE GetDesignationCount
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT COUNT(*)
+    FROM Designations;
+END
+GO
+
+
 
 
 

@@ -10,6 +10,8 @@ public interface IDesignationRepository
     Task<List<DesignationListDto>>
         GetAllDesignationsAsync();
 
+    Task<int> GetDesignationCountAsync();
+
     Task<DesignationDetailsDto?>
         GetDesignationByIdAsync(int id);
 

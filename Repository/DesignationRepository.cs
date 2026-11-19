@@ -94,6 +94,26 @@ public class DesignationRepository : IDesignationRepository
     }
 
 
+
+    // GET DEsignation COUNT
+    public async Task<int> GetDesignationCountAsync()
+    {
+        using SqlConnection connection = _connectionFactory.CreateConnection();
+
+        await connection.OpenAsync();
+
+        using SqlCommand command = new SqlCommand(
+            "GetDesignationCount",
+            connection);
+
+        command.CommandType = CommandType.StoredProcedure;
+
+        object? result = await command.ExecuteScalarAsync();
+
+        return Convert.ToInt32(result);
+    }
+
+
     // GET DESIGNATION BY ID
     public async Task<DesignationDetailsDto?> GetDesignationByIdAsync(
         int id)
